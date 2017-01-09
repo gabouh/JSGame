@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sprite editor</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+</head>
+<body>
+    <canvas id="canvas" style="background-color: #262626; width: unset;"></canvas>
+    <div class="sidePanel right" style="width: 25%;">
+        <h2>Sprites</h2>
+        <ul id="spriteList"></ul>
+    </div>
+    <script>
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var spriteList = document.getElementById("spriteList");
+        canvas.width = (document.body.clientWidth / 100) * 75;
+        canvas.height = document.body.clientHeight;
+        window.addEventListener("resize", function () {
+            canvas.width = (document.body.clientWidth / 100) * 75;
+            canvas.height = document.body.clientHeight;
+        });
+    </script>
+</body>
+</html>
