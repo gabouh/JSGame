@@ -6,12 +6,47 @@ html, body {
     overflow: hidden;
 }
 
+.modalBack {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+}
+
+.modal {
+    position: absolute;
+    top: 10%;
+    left: 40%;
+    width: 20%;
+    height: 80%;
+    background-color: #262626;
+}
+
+.horizontalList a {
+    text-decoration: none;
+}
+
+.horizontalList a li {
+    color: #b4b4b4;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 25px;
+}
+
+.modal button {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+
 #canvas {
     cursor: move;
 }
 
 .sidePanel {
-    background-color: gray;
+    background-color: #262626;
     width: 15%;
     height: 100%;
 }
@@ -29,7 +64,7 @@ html, body {
 #topMenu {
     width: 100%;
     height: 20px;
-    background-color: #262626;
+    background-color: #151515;
     color: #b4b4b4;
 }
 
@@ -49,7 +84,7 @@ html, body {
 }
 
 #topMenu ul li:hover {
-    background-color: #3f3f3f;
+    background-color: #353535;
 }
 
 li ul {
@@ -68,7 +103,7 @@ li:hover ul {
 }
 
 li:hover ul li {
-    background-color: #262626;
+    background-color: #151515;
     width: 120px;
     padding: 5px 4px !important;
     z-index: 10;
@@ -78,4 +113,18 @@ li:hover ul li {
 li ul li a {
     color: #b4b4b4;
     text-decoration: none;
+}
+
+.horizontalList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.horizontalList a li {
+    padding: 10px 10px;
+}
+
+.horizontalList a li:hover {
+    background-color: rgba(0, 0, 0, 0.3);
 }

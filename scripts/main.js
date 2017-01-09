@@ -3,124 +3,11 @@
  */
 var canvas;
 var ctx;
-var editorTilesHor = 9;
-var editorTilesVer = 16;
 var editorVersion = "v0.1";
 
 var moveEditor = false;
 var mousePos = {x: 0, y: 0};
 var editorOffset = {x: 0, y: 0};
-
-var fileSystem;
-var keyboardListener;
-
-window.requestFileSystem  = window.requestFileSystem || window.webkitRequestFileSystem;
-
-function errorHandler(e) {
-    var msg = '';
-
-    switch (e.code) {
-        case FileError.QUOTA_EXCEEDED_ERR:
-            msg = 'QUOTA_EXCEEDED_ERR';
-            break;
-        case FileError.NOT_FOUND_ERR:
-            msg = 'NOT_FOUND_ERR';
-            break;
-        case FileError.SECURITY_ERR:
-            msg = 'SECURITY_ERR';
-            break;
-        case FileError.INVALID_MODIFICATION_ERR:
-            msg = 'INVALID_MODIFICATION_ERR';
-            break;
-        case FileError.INVALID_STATE_ERR:
-            msg = 'INVALID_STATE_ERR';
-            break;
-        default:
-            msg = 'Unknown Error';
-            break;
-    }
-
-    console.log('Error: ' + msg);
-}
-
-function onInitFs(fs) {
-    fileSystem = fs;
-}
-
-function removeFile(filePath) {
-    fileSystem.root.getFile(filePath, {create: false}, function(fileEntry) {
-
-        fileEntry.remove(function() {
-        }, errorHandler);
-
-    }, errorHandler);
-}
-
-function writeFile(filePath, content) {
-    console.log(filePath);
-    fileSystem.root.getFile(filePath, {create: true}, function(fileEntry) {
-
-        // Create a FileWriter object for our FileEntry (log.txt).
-        fileEntry.createWriter(function(fileWriter) {
-
-            fileWriter.onwriteend = function(e) {
-                console.log('Write completed.');
-            };
-
-            fileWriter.onerror = function(e) {
-                console.log('Write failed: ' + e.toString());
-            };
-
-            fileWriter.write(content);
-
-        }, errorHandler);
-
-    }, errorHandler);
-}
-
-function readFile(filePath, callback) {
-    fileSystem.root.getFile(filePath, {}, function(fileEntry) {
-        fileEntry.file(function(file) {
-            var reader = new FileReader();
-
-            reader.onloadend = function(e) {
-                callback(this.result);
-            };
-
-            reader.readAsText(file);
-        }, errorHandler);
-
-    }, errorHandler);
-}
-
-function createDir(rootDirEntry, folders) {
-    // Throw out './' or '/' and move on to prevent something like '/foo/.//bar'.
-    if (folders[0] == '.' || folders[0] == '') {
-        folders = folders.slice(1);
-    }
-    rootDirEntry.getDirectory(folders[0], {create: true}, function(dirEntry) {
-        if (folders.length) {
-            createDir(dirEntry, folders.slice(1));
-        }
-    }, errorHandler);
-}
-
-function removeDir(dirPath) {
-    fileSystem.root.getDirectory(dirPath, {}, function(dirEntry) {
-
-        dirEntry.removeRecursively(function() {
-            console.log('Directory removed.');
-        }, errorHandler);
-
-    }, errorHandler);
-}
-
-function listFilesInDir(dirPath, callback) {
-    fileSystem.root.getDirectory(dirPath,{}, function (res) {
-        var dirReader = res.createReader();
-        dirReader.readEntries(callback);
-    });
-}
 
 function initEditor(canvasI) {
     canvas = canvasI;
@@ -139,11 +26,11 @@ function initEditor(canvasI) {
     };
     keyboardListener = new window.keypress.Listener();
     keyboardListener.register_combo({"keys":"space", "on_keydown": function (a, b, c) {moveEditor = true;}, "on_release": function (a, b, c) {moveEditor = false;}, "prevent_repeat": true, "prevent_default": true});
-    window.webkitStorageInfo.requestQuota(PERSISTENT, 1024*1024*200, function(grantedBytes) {
-        window.requestFileSystem(PERSISTENT, grantedBytes, onInitFs, errorHandler);
-    }, function(e) {
-        console.log('Error', e);
-    });
+    initFiles();
+    drawEditor();
+    onFileChange = function () {
+        openProject(window.localStorage.projectName);
+    }
 }
 
 function onMouseMove(event) {
@@ -161,14 +48,14 @@ function onMouseMove(event) {
 function drawEditor() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     var img = document.getElementById("background");
-    for (var x = -3; x < canvas.width/16 + 3; x++) {
-        for (var y = -3; y < canvas.height/16 + 3; y++) {
+    for (var x = -3; x < canvas.width/48 + 3; x++) {
+        for (var y = -3; y < canvas.height/48+ 3; y++) {
             //if (x == Math.floor(mousePos.x / 16) && y == Math.floor(mousePos.y / 16))
-            ctx.drawImage(img, (x + (editorOffset.x%16)/16) * 16, (y + (editorOffset.y%16)/16) * 16, 16, 16);
+            ctx.drawImage(img, (x + (editorOffset.x%48)/48) * 48, (y + (editorOffset.y%48)/48) * 48, 48, 48);
         }
     }
-    editorOffset.x = editorOffset.x%32;
-    editorOffset.y = editorOffset.y%32;
+    editorOffset.x = editorOffset.x%96;
+    editorOffset.y = editorOffset.y%96;
 }
 
 function onClick(event) {
@@ -179,31 +66,73 @@ function onClick(event) {
         case "A":
             switch (event.target.innerText) {
                 case "New project":
-                    var projectName = prompt("Please enter name for the project:");
-                    createDir(fileSystem.root, [projectName]);
-                    var projectIni = {name: projectName, editorVersion: editorVersion};
-                    writeFile(projectName+"/project.ini", new Blob([JSON.stringify(projectIni)]));
-                    listFilesInDir(projectName, function (files) {
-                        var ul = document.getElementById("projectFiles");
-                        ul.innerHTML = "";
-                        for (var i = 0; i < files.length; i++) {
-                            var file = files[i];
-                            ul.innerHTML += "<li>"+file.name+"</li>";
-                        }
+                    var projectNameLocal = prompt("Please enter name for the project:");
+                    createDir(fileSystem.root, "projects", function () {
+                        fileSystem.root.getDirectory("/projects/", {}, function (res) {
+                            createDir(res, projectNameLocal, function () {
+                                var projectIni = {name: projectNameLocal, editorVersion: editorVersion};
+                                writeFile("projects/" + projectNameLocal + "/project.ini", new Blob([JSON.stringify(projectIni)]), function () {
+                                    openProject(projectNameLocal);
+                                });
+                                writeFile("projects/" + projectNameLocal + "/main.scene", new Blob(["{\"name\":\"main\"}"]), function () {
+
+                                });
+                            });
+                        });
                     });
                     break;
                 case "Open project":
-                    var projectName = prompt("Please enter name for the project:");
-                    listFilesInDir("/"+projectName, function (files) {
-                        var ul = document.getElementById("projectFiles");
-                        ul.innerHTML = "";
-                        for (var i = 0; i < files.length; i++) {
-                            var file = files[i];
-                            ul.innerHTML += "<li>"+file.name+"</li>";
+                    var modal = "<div class='modal'><ul id='projects' class='horizontalList'></ul><button onclick='document.body.removeChild(document.getElementsByClassName(\"modalBack\")[0])'>Cancel</button></div>";
+                    var div = document.createElement("div");
+                    div.className = "modalBack";
+                    div.innerHTML = modal;
+                    document.body.appendChild(div);
+                    listFilesInDir("/projects/", function (projects) {
+                        console.log(projects);
+                        var ul = document.getElementById("projects");
+                        if (projects.length == 0) {
+                            ul.innerHTML += "<a href='javascript:void(0)'><li>No projects found</li></a>"
+                        } else {
+                            for (var i = 0; i < projects.length; i++) {
+                                var project = projects[i];
+                                console.log(project);
+                                ul.innerHTML += "<a href='javascript:void(0)' onclick='openProject(this.childNodes[0].innerHTML);document.body.removeChild(document.getElementsByClassName(\"modalBack\")[0]);'><li>" + project.name + "</li></a>"
+                            }
                         }
                     });
                     break;
+                case "Import sprite(s)":
+                    window.open("spriteEditor.html", "_blank", "top=200,left=500,width=800,height=500");
             }
             console.log("clicked on link");
     }
+}
+
+function createFileInProject(parent) {
+
+}
+
+function deleteFileInProject(file) {
+
+}
+
+function openProject(name) {
+    window.localStorage.projectName = name;
+    listFilesInDir("/projects/" + name, function (files) {
+        var ul = document.getElementById("projectFiles");
+        ul.innerHTML = "";
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            ul.innerHTML += "<a href='javascript:void(0)' onclick='openFile(this.childNodes[0].innerHTML)'><li>" + file.name + "</li></a>"
+        }
+    });
+}
+
+function openFile(e) {
+    var win = window.open("fileEditor.html", "_blank", "top=200,left=500,width=800,height=500");
+    readFile("/projects/" + window.localStorage.projectName + "/" + e, function (c) {
+        win.onload = function () {
+            win.document.getElementById("fileC").innerHTML = JSON.stringify({name: e, content: c});
+        }
+    });
 }

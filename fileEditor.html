@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Editor</title>
+    <script src="lib/codemirror/lib/codemirror.js"></script>
+    <link rel="stylesheet" href="lib/codemirror/lib/codemirror.css">
+    <link rel="stylesheet" href="lib/codemirror/theme/material.css">
+    <script src="lib/codemirror/mode/javascript/javascript.js"></script>
+    <script src="scripts/files.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .CodeMirror {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<p id="fileC"></p>
+<script>
+    setTimeout(init, 100);
+    function init() {
+        initFiles();
+        var file = JSON.parse(document.getElementById("fileC").innerHTML);
+        document.body.removeChild(document.getElementById("fileC"));
+        var myCodeMirror = CodeMirror(document.body, {
+            value: file.content,
+            mode:  "javascript",
+            lineNumbers: true,
+            theme: "material"
+        });
+        myCodeMirror.on("change", function () {
+            removeFile("projects/" + window.localStorage.projectName + "/" + file.name, function () {
+                writeFile("projects/" + window.localStorage.projectName + "/" + file.name, new Blob([myCodeMirror.getValue()]), function () {});
+            });
+        })
+    }
+</script>
+</body>
+</html>
