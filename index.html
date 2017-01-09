@@ -2,12 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>JSGame Editor v0.1</title>
-    <script src="scripts/blocky/blockly_compressed.js"></script>
-    <script src="scripts/blocky/blocks_compressed.js"></script>
-    <script src="scripts/blocky/javascript_compressed.js"></script>
+    <title>JSGame Editor v0.1a</title>
+    <script src="scripts/main.js"></script>
+    <script src="lib/keypress.js"></script>
+    <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
-<script src="scripts/main.js"></script>
+    <img src="assets/back.png" style="display: none;" id="background">
+    <div id="topMenu">
+        <ul>
+            JSGame
+            <li>File
+                <ul>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">New project</a></li>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">Import sprite(s)</a></li>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">Open project</a></li>
+                </ul>
+            </li>
+            <li>Edit
+                <ul>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">DUMMY</a></li>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">DUMMY</a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+    <div class="sidePanel left">
+        <h2>Project</h2>
+        <ul id="projectFiles"></ul>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div class="sidePanel right">
+        <h2>Properties</h2>
+    </div>
+    <script>
+        initEditor(document.getElementById("canvas"));
+    </script>
 </body>
 </html>
