@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File import</title>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            background-color: #262626;
+            font-family: Tahoma, serif;
+        }
+
+        #drop_zone {
+            margin: calc(10% - 1px) calc(10% - 1px);
+            margin-top: 60px !important;
+            width: 80%;
+            height: 35%;
+            border: 1px dashed #a0a0a0;
+            border-radius: 50px;
+            text-align: center;
+            padding-top: 13%;
+            font-size: 40px;
+            color: #a0a0a0;
+            text-transform: uppercase;
+        }
+
+        #drop_zone.drop {
+            background-color: #454545;
+            -webkit-transition: 1s;
+            -moz-transition: 1s;
+            -o-transition: 1s;
+            transition: 1s;
+        }
+
+        #file {
+            height: 10%;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="drop_zone">Drop files here</div>
+    <input type="file" id="file" name="file" multiple />
+    <script>
+        function handleFileSelect(evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+
+            var files = evt.dataTransfer.files;
+        }
+
+        function handleDragOver(evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            evt.dataTransfer.dropEffect = 'copy';
+            document.getElementById("drop_zone").classList.add("drop");
+        }
+
+        var dropZone = document.getElementById('drop_zone');
+        dropZone.addEventListener('dragover', handleDragOver, false);
+        dropZone.addEventListener('drop', handleFileSelect, false);
+        document.getElementById('file').addEventListener('change', handleFileSelect, false);
+    </script>
+</body>
+</html>

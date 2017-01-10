@@ -3,7 +3,7 @@
  */
 var canvas;
 var ctx;
-var editorVersion = "v0.1";
+var editorVersion = "v0.1a";
 
 var moveEditor = false;
 var mousePos = {x: 0, y: 0};
@@ -11,10 +11,10 @@ var editorOffset = {x: 0, y: 0};
 
 function initEditor(canvasI) {
     canvas = canvasI;
-    canvas.width = (document.body.clientWidth/ 100) * 70;
+    canvas.width = (document.body.clientWidth/ 100) * 50;
     canvas.height = document.body.clientHeight - 20;
     window.addEventListener("resize", function () {
-        canvas.width = (document.body.clientWidth/ 100) * 70;
+        canvas.width = (document.body.clientWidth/ 100) * 50;
         canvas.height = document.body.clientHeight - 20;
     });
     ctx = canvas.getContext("2d");
@@ -30,7 +30,38 @@ function initEditor(canvasI) {
     drawEditor();
     onFileChange = function () {
         openProject(window.localStorage.projectName);
-    }
+    };
+    $("#leftPanel").resizable({
+        minWidth: 150,
+        maxWidth: 500,
+        resize: function (event, ui) {
+            canvas.width = document.body.clientWidth - $("#leftPanel").innerWidth() - $("#rightPanel").innerWidth()-1;
+            drawEditor();
+        }
+    });
+    $("#rightPanel").resizable({
+        minWidth: 150,
+        maxWidth: 500,
+        handles: "w",
+        resize: function (event, ui){
+            canvas.width = document.body.clientWidth - $("#leftPanel").innerWidth() - $("#rightPanel").innerWidth();
+            ui.position.left = ui.originalPosition.left;
+            drawEditor();
+        }
+    });
+    $("#projectFiles").jstree({'core' : {
+        "check_callback" : true,
+        "themes": {
+            "name": "default-dark",
+            "dots": false,
+            "icons": false
+        }}, "plugins" : [
+        "contextmenu",
+        "dnd",
+        "unique",
+        "wholerow",
+        "state"
+    ]});
 }
 
 function onMouseMove(event) {
@@ -101,8 +132,9 @@ function onClick(event) {
                         }
                     });
                     break;
-                case "Import sprite(s)":
-                    window.open("spriteEditor.html", "_blank", "top=200,left=500,width=800,height=500");
+                case "Import file(s)":
+
+                    //window.open("spriteEditor.html", "_blank", "top=200,left=500,width=800,height=500");
             }
             console.log("clicked on link");
     }
@@ -116,15 +148,35 @@ function deleteFileInProject(file) {
 
 }
 
+var projectFileStructure = [];
+
+function openFolder(name) {
+    listFilesInDir("/projects/" + window.localStorage.projectName + "/" + name, function (files) {
+        for (var i = 0; i < files.length; i++) {
+            var final = true;
+            var file = files[i];
+            if (file.isDirectory)
+                openFolder(name + "/" + file.name);
+                final = false;
+
+            if (final)
+
+            //"<a href='javascript:void(0)' onclick='openFile(this.childNodes[0].innerHTML)'><li>" + file.name + "</li></a>"
+            object.append({id: i});
+            if (final) {
+                $("#projectFiles").jstree(true).settings.core.data = projectFileStructure;
+                $('#projectFiles').jstree(true).refresh();
+            }
+        }
+    });
+}
+
 function openProject(name) {
     window.localStorage.projectName = name;
-    listFilesInDir("/projects/" + name, function (files) {
-        var ul = document.getElementById("projectFiles");
-        ul.innerHTML = "";
-        for (var i = 0; i < files.length; i++) {
-            var file = files[i];
-            ul.innerHTML += "<a href='javascript:void(0)' onclick='openFile(this.childNodes[0].innerHTML)'><li>" + file.name + "</li></a>"
-        }
+    projectFileStructure = [];
+    openFolder("/");
+    $("#projectFiles").on("move_node.jstree", function(e, data) {
+        console.log("Drop node " + data.node.id + " to " + data.parent);
     });
 }
 

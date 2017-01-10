@@ -6,6 +6,10 @@
     <script src="scripts/main.js"></script>
     <script src="lib/keypress.js"></script>
     <script src="scripts/files.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default-dark/style.min.css">
     <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
@@ -17,7 +21,7 @@
                 <ul>
                     <li><a href="javascript:void(0)" onclick="onClick(event)">New project</a></li>
                     <li><a href="javascript:void(0)" onclick="onClick(event)">Open project</a></li>
-                    <li><a href="javascript:void(0)" onclick="onClick(event)">Import sprite(s)</a></li>
+                    <li><a href="javascript:void(0)" onclick="onClick(event)">Import file(s)</a></li>
                 </ul>
             </li>
             <li>Edit
@@ -28,13 +32,13 @@
             </li>
         </ul>
     </div>
-    <div class="sidePanel left">
-        <h2 style="text-align: center; font-size: 20px;">Project files</h2>
-        <ul id="projectFiles" class="horizontalList"></ul>
+    <div class="sidePanel left" id="leftPanel">
+        <h2>Project files</h2>
+        <ul id="projectFiles" style="padding-left: 5px"></ul>
     </div>
     <canvas id="canvas"></canvas>
-    <div class="sidePanel right">
-        <h2 style="text-align: center; font-size: 20px;">Properties</h2>
+    <div class="sidePanel right" id="rightPanel">
+        <h2>Properties</h2>
     </div>
     <script>
         initEditor(document.getElementById("canvas"));
