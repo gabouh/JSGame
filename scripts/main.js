@@ -55,13 +55,44 @@ function initEditor(canvasI) {
             "name": "default-dark",
             "dots": false,
             "icons": false
-        }}, "plugins" : [
-        "contextmenu",
-        "dnd",
-        "unique",
-        "wholerow",
-        "state"
-    ]});
+        }, "content": []}, "plugins" : ["contextmenu", "dnd", "unique", "wholerow", "state"],
+            "contextmenu":{
+                "items": function($node) {
+                    console.log($node);
+                    var tree = $("#projectFiles").jstree(true);
+                    var object = {
+
+                    };
+                    if (!$node.li_attr["data-open"]) {
+                        object.Create = {
+                            "separator_before": false,
+                            "separator_after": false,
+                            "label": "Create",
+                            "action": function (obj) {
+                                $node = tree.create_node($node);
+                                tree.edit($node);
+                            }
+                        }
+                    }
+                    object.Rename = {
+                        "separator_before": false,
+                        "separator_after": false,
+                        "label": "Rename",
+                        "action": function (obj) {
+                            tree.edit($node);
+                        }
+                    };
+                    object.Remove = {
+                        "separator_before": false,
+                        "separator_after": false,
+                        "label": "Remove",
+                        "action": function (obj) {
+                            tree.delete_node($node);
+                        }
+                    };
+                    return object;
+                }
+            }});
 }
 
 function onMouseMove(event) {
@@ -119,14 +150,12 @@ function onClick(event) {
                     div.innerHTML = modal;
                     document.body.appendChild(div);
                     listFilesInDir("/projects/", function (projects) {
-                        console.log(projects);
                         var ul = document.getElementById("projects");
                         if (projects.length == 0) {
                             ul.innerHTML += "<a href='javascript:void(0)'><li>No projects found</li></a>"
                         } else {
                             for (var i = 0; i < projects.length; i++) {
                                 var project = projects[i];
-                                console.log(project);
                                 ul.innerHTML += "<a href='javascript:void(0)' onclick='openProject(this.childNodes[0].innerHTML);document.body.removeChild(document.getElementsByClassName(\"modalBack\")[0]);'><li>" + project.name + "</li></a>"
                             }
                         }
@@ -150,23 +179,23 @@ function deleteFileInProject(file) {
 
 var projectFileStructure = [];
 
-function openFolder(name) {
+function openFolder(name, parentFolder) {
+    if (parentFolder == null)
+        parentFolder = "#";
     listFilesInDir("/projects/" + window.localStorage.projectName + "/" + name, function (files) {
+        var final = true;
         for (var i = 0; i < files.length; i++) {
-            var final = true;
             var file = files[i];
-            if (file.isDirectory)
-                openFolder(name + "/" + file.name);
+            if (file.isDirectory) {
+                openFolder(name + "/" + file.name, "entry"+projectFileStructure.length);
                 final = false;
-
-            if (final)
-
-            //"<a href='javascript:void(0)' onclick='openFile(this.childNodes[0].innerHTML)'><li>" + file.name + "</li></a>"
-            object.append({id: i});
-            if (final) {
-                $("#projectFiles").jstree(true).settings.core.data = projectFileStructure;
-                $('#projectFiles').jstree(true).refresh();
             }
+            projectFileStructure.push({id: "entry"+projectFileStructure.length, li_attr: {"data-open": !file.isDirectory,"data-file": name + "/" + file.name}, text: file.name, parent: parentFolder});
+        }
+        if (final) {
+            var projectFiles = $("#projectFiles");
+            projectFiles.jstree(true).settings.core.data = projectFileStructure;
+            projectFiles.jstree("refresh");
         }
     });
 }
@@ -175,8 +204,24 @@ function openProject(name) {
     window.localStorage.projectName = name;
     projectFileStructure = [];
     openFolder("/");
-    $("#projectFiles").on("move_node.jstree", function(e, data) {
+    var projectFiles = $("#projectFiles");
+    projectFiles.on("move_node.jstree", function(e, data) {
         console.log("Drop node " + data.node.id + " to " + data.parent);
+    });
+
+    projectFiles.on("click.jstree", function (e) {
+        if (e.originalEvent.type != "keydown")
+            return;
+        var li = $(event.target).closest("li");
+        if (li.data("open")) {
+            openFile(li.data("file"));
+        }
+    });
+    projectFiles.on("dblclick.jstree", function (e) {
+        var li = $(event.target).closest("li");
+        if (li.data("open")) {
+            openFile(li.data("file"));
+        }
     });
 }
 
