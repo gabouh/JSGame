@@ -3,6 +3,7 @@
  */
 var canvas;
 var ctx;
+var renderer;
 var editorVersion = "v0.1a";
 
 var moveEditor = false;
@@ -17,7 +18,8 @@ function initEditor(canvasI) {
         canvas.width = (document.body.clientWidth/ 100) * 50;
         canvas.height = document.body.clientHeight - 20;
     });
-    ctx = canvas.getContext("2d");
+    //ctx = canvas.getContext("2d");
+    renderer = new WebGL(canvas);
     canvas.onclick = function (event) {
         onClick(event);
     };
@@ -110,6 +112,8 @@ function onMouseMove(event) {
 }
 
 function drawEditor() {
+    renderer.draw();
+    /*
     ctx.clearRect(0,0,canvas.width,canvas.height);
     var img = document.getElementById("background");
     for (var x = -3; x < canvas.width/48 + 3; x++) {
@@ -120,6 +124,7 @@ function drawEditor() {
     }
     editorOffset.x = editorOffset.x%96;
     editorOffset.y = editorOffset.y%96;
+    */
 }
 
 function onClick(event) {
