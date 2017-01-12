@@ -89,6 +89,30 @@ function readFile(filePath, callback) {
     }, errorHandler);
 }
 
+function moveEntry(oldPath, dirPath) {
+    fileSystem.root.getFile(oldPath, {}, function (f) {
+        fileSystem.root.getDirectory(dirPath, {}, function(dirEntry) {
+            f.moveTo(dirEntry);
+        }, errorHandler);
+    }, errorHandler);
+}
+
+function renameEntry(oldName, newName) {
+    fileSystem.root.getFile(oldName, {}, function(fileEntry) {
+        var path = newName.substr(0, newName.lastIndexOf("/"));
+        var fileName = newName.substr(newName.lastIndexOf("/")+1);
+        fileSystem.root.getDirectory(path, {}, function (dirEntry) {
+            fileEntry.moveTo(dirEntry, fileName);
+        });
+    }, errorHandler);
+}
+
+function copyEntry(oldPath, newPath) {
+    fileSystem.root.getFile(oldPath, {}, function (f) {
+        f.copyTo(fileSystem.root, newPath);
+    }, errorHandler);
+}
+
 function createDir(rootDirEntry, folder, callback) {
     rootDirEntry.getDirectory(folder, {create: true}, function(dirEntry) {
         callback();

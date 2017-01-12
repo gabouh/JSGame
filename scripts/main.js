@@ -50,7 +50,12 @@ function initEditor(canvasI) {
         }
     });
     $("#projectFiles").jstree({'core' : {
-        "check_callback" : true,
+        "check_callback" : function (operation, node, node_parent, node_position, more) {
+            if (operation == "move_node" && node_parent != undefined && node_parent.li_attr != undefined) {
+                return !node_parent.li_attr["data-open"];
+            }
+            return true;
+        },
         "themes": {
             "name": "default-dark",
             "dots": false,
@@ -58,11 +63,8 @@ function initEditor(canvasI) {
         }, "content": []}, "plugins" : ["contextmenu", "dnd", "unique", "wholerow", "state"],
             "contextmenu":{
                 "items": function($node) {
-                    console.log($node);
                     var tree = $("#projectFiles").jstree(true);
-                    var object = {
-
-                    };
+                    var object = {};
                     if (!$node.li_attr["data-open"]) {
                         object.Create = {
                             "separator_before": false,
@@ -206,15 +208,41 @@ function openProject(name) {
     openFolder("/");
     var projectFiles = $("#projectFiles");
     projectFiles.on("move_node.jstree", function(e, data) {
-        console.log("Drop node " + data.node.id + " to " + data.parent);
+        var node = data.node;
+        var parent = "";
+        if (data.parent == "#")
+            parent = "/";
+        else
+            parent = $("#" + data.parent)[0].dataset["file"];
+        var projectPath = "projects/" + window.localStorage.projectName + "/";
+        moveEntry(projectPath + node.li_attr["data-file"],projectPath + parent);
     });
-
+    projectFiles.on("rename_node.jstree", function (e, node) {
+        var projectPath = "projects/" + window.localStorage.projectName + "/";
+        var path = node.node.li_attr["data-file"];
+        path = path.substr(0, path.lastIndexOf("/")+1);
+        renameEntry(projectPath + node.node.li_attr["data-file"], projectPath + path + node.text)
+    });
     projectFiles.on("click.jstree", function (e) {
-        if (e.originalEvent.type != "keydown")
+        if (e.originalEvent == undefined || e.originalEvent.type != "keydown")
             return;
         var li = $(event.target).closest("li");
         if (li.data("open")) {
             openFile(li.data("file"));
+        }
+    });
+    projectFiles.on("delete_node.jstree", function (e, node) {
+        node = node.node;
+        var projectPath = "projects/" + window.localStorage.projectName + "/";
+        console.log(projectPath + node.li_attr["data-file"]);
+        if (node.li_attr["data-open"]) {
+            removeFile(projectPath + node.li_attr["data-file"], function (e) {
+                openProject(window.localStorage.projectName);
+            });
+        } else {
+            removeDir(projectPath+node.li_attr["data-file"], function (e) {
+                openProject(window.localStorage.projectName);
+            })
         }
     });
     projectFiles.on("dblclick.jstree", function (e) {

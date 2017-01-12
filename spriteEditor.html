@@ -9,7 +9,7 @@
     <canvas id="canvas" style="background-color: #A0A0A0; width: unset;"></canvas>
     <div class="sidePanel right" style="width: 25%;">
         <h2>Sprites</h2>
-        <ul id="spriteList"></ul>
+        <ul id="spriteList" class="horizontalList"></ul>
     </div>
     <script>
         var canvas = document.getElementById("canvas");
@@ -21,6 +21,51 @@
             canvas.width = (document.body.clientWidth / 100) * 75;
             canvas.height = document.body.clientHeight;
         });
+
+        var sprites = [];
+        var selectedSprite = 0;
+
+        var img = document.createElement("img");
+        img.src = "assets/test.png";
+        img.onload = draw;
+        var resizeAspect = (canvas.height / img.height) - 0.1;
+        img.height = resizeAspect * img.height;
+        img.width = resizeAspect * img.width;
+
+        function draw() {
+            ctx.drawImage(img, (canvas.width - img.width) / 2, (canvas.height - img.height) / 2, img.width, img. height);
+            for (var i = 0; i < sprites.length; i++) {
+                var sprite = sprites[i];
+                if (i == selectedSprite)
+                    ctx.strokeStyle = "red";
+                else
+                    ctx.strokeStyle = "black";
+                ctx.strokeRect(sprite.sX, sprite.sY, sprite.fX - sprite.sX, sprite.fY - sprite.sY);
+            }
+            requestAnimationFrame(draw);
+        }
+
+        var tmp = {};
+        canvas.onmousedown = function (e) {
+            var tmpX = event.pageX - canvas.offsetLeft;
+            var tmpY = event.pageY - canvas.offsetTop;
+            tmp.sX = tmpX;
+            tmp.sY = tmpY;
+        };
+
+        canvas.onmouseup = function (e) {
+            var tmpX = event.pageX - canvas.offsetLeft;
+            var tmpY = event.pageY - canvas.offsetTop;
+            tmp.fX = tmpX;
+            tmp.fY = tmpY;
+            addSprite(tmp);
+            tmp = [];
+        };
+
+        function addSprite(sprite) {
+            spriteList.innerHTML += "<a href='javascript:void(0)' data-id='" + sprites.length + "' onclick='selectedSprite = this.dataset.id'><li>" + sprites.length + "</li></a>";
+            sprites.push(sprite);
+        }
     </script>
 </body>
 </html>
