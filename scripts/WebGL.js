@@ -24,7 +24,7 @@ function WebGL(canvas) {
         this.gl.depthFunc(this.gl.LEQUAL);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-        this.loadBuffer([1.0,1.0,0.0,-1.0,1.0,0.0,1.0,-1.0,0.0,-1.0,-1.0,0.0], this.loadShader(loadFileContent("shaders/fractal.frag"), vertShader));
+        this.loadBuffer([1.0,1.0,0.0,-1.0,1.0,0.0,1.0,-1.0,0.0,-1.0,-1.0,0.0], this.loadShader(fragShader, vertShader));
     };
 
     this.draw = function () {
