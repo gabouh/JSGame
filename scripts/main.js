@@ -51,6 +51,7 @@ function initEditor(canvasI) {
             drawEditor();
         }
     });
+    /*
     $("#projectFiles").jstree({'core' : {
         "check_callback" : function (operation, node, node_parent, node_position, more) {
             if (operation == "move_node" && node_parent != undefined && node_parent.li_attr != undefined) {
@@ -97,6 +98,7 @@ function initEditor(canvasI) {
                     return object;
                 }
             }});
+    */
 }
 
 function onMouseMove(event) {
