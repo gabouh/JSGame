@@ -12,12 +12,17 @@ var vertShader = "attribute vec3 aVertexPos;\n" +
     "varying highp vec2 vUV;\n" +
     "void main(void) {\n" +
     "   gl_Position = vec4(aVertexPos, 1.0);\n" +
-    "   //vUV = aUVPos;\n" +
+    "   vUV = aUVPos;\n" +
     "}";
 
+/**
+ * Returns WebGL renderer instance.
+ * @param canvas Canvas to be used for rendering (!!! May be subject of change to allow rendering to texture to allow image postprocessing)
+ * @constructor
+ */
 function WebGL(canvas) {
     this.canvas = canvas;
-    this.buffers = {};
+    this.meshes = {};
     this.gl = canvas.getContext("webgl");
     this.shaders = {};
     this.textures = {};
@@ -25,43 +30,57 @@ function WebGL(canvas) {
     this.ctrS = 0;
     this.ctrT = 0;
 
+    /**
+     * <b>Do not use. Used internally.</b>
+     * Used for object initialization.
+     */
     this.init = function () {
         this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
         this.gl.enable(this.gl.DEPTH_TEST);
         this.gl.depthFunc(this.gl.LEQUAL);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-        var shader = this.loadShader(fragShader, vertShader);
-        this.loadBuffer([1,1,0, -1,1,0, 1,-1,0, -1,-1,0], [1,1, -1,1, 1,-1, -1,-1], this.loadTexture("assets/back.png"), shader);
     };
 
+    /**
+     * Call this function to draw onto canvas (TODO: Allow rendering to texture)
+     */
     this.draw = function () {
         if (this.texturesToLoad > 0) {
             console.log("Textures not loaded yet!");
             return;
         }
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
-        for (var bufferID in this.buffers) {
-            var buffer = this.buffers[bufferID];
-            var shader = this.shaders[buffer.shader].shader;
-            this.gl.useProgram(shader);
+        for (var meshID in this.meshes) {
+            if (!this.meshes.hasOwnProperty(meshID))
+                continue;
+            var mesh = this.meshes[meshID];
+            var shader = this.shaders[mesh.shader];
+            this.gl.useProgram(shader.shader);
 
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer.vertexBuffer);
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, mesh.vertexBuffer);
             this.gl.vertexAttribPointer(shader.vertexPos, 3, this.gl.FLOAT, false, 0, 0);
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer.uvBuffer);
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, mesh.uvBuffer);
             this.gl.vertexAttribPointer(shader.uvCoord, 2, this.gl.FLOAT, false, 0, 0);
 
             this.gl.activeTexture(this.gl.TEXTURE0);
-            this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[buffer.textureID]);
-            this.gl.uniform1i(this.gl.getUniformLocation(shader, "texture"), 0);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[mesh.textureID]);
+            this.gl.uniform1i(this.gl.getUniformLocation(shader.shader, "texture"), 0);
 
-            this.gl.uniform2fv(this.gl.getUniformLocation(shader, "resolution"), Float32Array.from([this.canvas.height, this.canvas.width]));
+            this.gl.uniform2fv(this.gl.getUniformLocation(shader.shader, "resolution"), Float32Array.from([this.canvas.height, this.canvas.width]));
 
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
         }
     };
 
+    /**
+     * Use this to load shader onto GPU
+     * @param fragShader Source code of fragment shader.
+     * @param vertShader Source code of vertex shader.
+     * @returns {*} Shader object. Please refer to {@link Shader}
+     */
     this.loadShader = function (fragShader, vertShader) {
         var frag = this.compileShader(fragShader, this.gl.FRAGMENT_SHADER);
         var vert = this.compileShader(vertShader, this.gl.VERTEX_SHADER);
@@ -73,9 +92,16 @@ function WebGL(canvas) {
         this.gl.enableVertexAttribArray(uvCoord);
         var id = this.ctrS++;
         this.shaders[id] = new Shader(aVertexPos, uvCoord, program);
-        return id;
+        return this.shaders[id];
     };
-    
+
+    /**
+     * <b>Do not use. Used internally.</b>
+     * Compiles shader and loads it onto GPU
+     * @param code Code of the shader.
+     * @param type Specifies shader type (gl.FRAGMENT_SHADER or gl.VERTEX_SHADER)
+     * @returns {WebGLShader}
+     */
     this.compileShader = function (code, type) {
         var shader = this.gl.createShader(type);
         this.gl.shaderSource(shader, code);
@@ -86,7 +112,14 @@ function WebGL(canvas) {
         }
         return shader;
     };
-    
+
+    /**
+     * <b>Do not use. Used internally.</b>
+     * Creates shader program from two shaders.
+     * @param fragmentShader Fragment shader position.
+     * @param vertexShader Vertex shader position.
+     * @returns {WebGLProgram}
+     */
     this.createShaderProgram = function (fragmentShader, vertexShader) {
         var program = this.gl.createProgram();
         this.gl.attachShader(program, vertexShader);
@@ -99,16 +132,24 @@ function WebGL(canvas) {
         return program;
     };
 
-    this.loadBuffer = function (vertices, uv, textureID, shader) {
-        var vertexBuffer = this.gl.createBuffer();
+    /**
+     * Load
+     * @param vertices
+     * @param uv
+     * @param shader
+     * @param textureID
+     * @returns {*}
+     */
+    this.loadMesh = function (vertices, uv, shader, textureID) {
+        var vertexBuffer =
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
         var uvBuffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, uvBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uv), this.gl.STATIC_DRAW);
         var ret = this.ctrB++;
-        this.buffers[ret] = new Buffer(vertexBuffer, uvBuffer, shader, textureID);
-        return ret;
+        this.meshes[ret] = new Mesh(ret, vertexBuffer, uvBuffer, shader, textureID);
+        return this.meshes[ret];
     };
 
     this.texturesToLoad = 0;
@@ -129,22 +170,52 @@ function WebGL(canvas) {
             this.texturesToLoad--;
         }.bind(this);
         image.src = path;
-        console.log(this.ctrT);
         return id;
     };
 
     this.init();
 }
 
-function Shader(vertexPos, uvCoord, shader) {
+/**
+ * <b>Do not use. Used internally.</b>
+ * @param id ID of the shader
+ * @param vertexPos attribute pos
+ * @param uvCoord attribute pos
+ * @param shader shader pos
+ * @constructor
+ */
+function Shader(id, vertexPos, uvCoord, shader) {
+    this.id = id;
     this.vertexPos = vertexPos;
     this.uvCoord = uvCoord;
     this.shader = shader;
 }
 
-function Buffer (vertexBuffer, uvBuffer, shader, textureID) {
-    this.vertexBuffer = vertexBuffer;
-    this.uvBuffer = uvBuffer;
+/**
+ * <b>Do not use. Used internally.</b>
+ * @param id ID of the mesh
+ * @param gl Instace of {@link WebGL}
+ * @param vertices Vertices float array
+ * @param uv UV float array
+ * @param shader Shader object
+ * @param textureID Texture ID.
+ * @param transformationMatrix
+ * @constructor
+ */
+function Mesh (id, gl, vertices, uv, shader, textureID, transformationMatrix /* OPTIONAL */) {
+    this.id = id;
+    this.gl = gl;
+    this.vertexBuffer = this.gl.createBuffer();
+    this.uvBuffer = this.gl.createBuffer();
     this.textureID = textureID;
     this.shader = shader;
+    this.transformationMatrix = transformationMatrix;
+
+    this.setBufferData = function (buffer, data) {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(data), this.gl.STATIC_DRAW);
+    };
+
+    this.setBufferData(this.vertexBuffer, vertices);
+    this.setBufferData(this.uvBuffer, uv);
 }

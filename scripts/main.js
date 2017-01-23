@@ -29,6 +29,7 @@ function initEditor(canvasI) {
     keyboardListener = new window.keypress.Listener();
     keyboardListener.register_combo({"keys":"space", "on_keydown": function (a, b, c) {moveEditor = true;}, "on_release": function (a, b, c) {moveEditor = false;}, "prevent_repeat": true, "prevent_default": true});
     initFiles();
+    initRenderer();
     drawEditor();
     onFileChange = function () {
         openProject(window.localStorage.projectName);
@@ -51,7 +52,6 @@ function initEditor(canvasI) {
             drawEditor();
         }
     });
-    /*
     $("#projectFiles").jstree({'core' : {
         "check_callback" : function (operation, node, node_parent, node_position, more) {
             if (operation == "move_node" && node_parent != undefined && node_parent.li_attr != undefined) {
@@ -63,8 +63,7 @@ function initEditor(canvasI) {
             "name": "default-dark",
             "dots": false,
             "icons": false
-        }, "content": []}, "plugins" : ["contextmenu", "dnd", "unique", "wholerow", "state"],
-            "contextmenu":{
+        }, "content": []}, "plugins" : ["contextmenu", "dnd", "unique", "wholerow", "state"], "contextmenu":{
                 "items": function($node) {
                     var tree = $("#projectFiles").jstree(true);
                     var object = {};
@@ -98,7 +97,12 @@ function initEditor(canvasI) {
                     return object;
                 }
             }});
-    */
+}
+
+function initRenderer() {
+    var shader = renderer.loadShader(fragShader, vertShader);
+    renderer.loadMesh([1,1,0, -1,1,0, 1,-1,0, -1,-1,0], [50,50, 0,50, 50,0, 0,0], renderer.loadTexture("assets/back.png"), shader);
+    renderer.loadMesh([0.2,0.2,0, -0.2,0.2,0, 0.2,-0.2,0, -0.2,-0.2,0], [10,10, 0,10, 10,0, 0,0], renderer.loadTexture("assets/dirt.png"), shader);
 }
 
 function onMouseMove(event) {
