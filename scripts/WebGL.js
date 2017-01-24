@@ -1,5 +1,6 @@
 /**
- * Created by polakja15 on 12.01.2017.
+ * Default fragment shader. <b>Do not change!</b>
+ * @type {string}
  */
 var fragShader = "precision mediump float;\n" +
     "uniform sampler2D texture;\n" +
@@ -7,6 +8,10 @@ var fragShader = "precision mediump float;\n" +
     "void main() {\n" +
     "   gl_FragColor = texture2D(texture, vUV);\n" +
     "}";
+/**
+ * Default vertex shader. <b>Do not change!</b>
+ * @type {string}
+ */
 var vertShader = "attribute vec3 aVertexPos;\n" +
     "attribute vec2 aUVPos;\n" +
     "varying highp vec2 vUV;\n" +
@@ -22,10 +27,11 @@ var vertShader = "attribute vec3 aVertexPos;\n" +
  */
 function WebGL(canvas) {
     this.canvas = canvas;
-    this.meshes = {};
     this.gl = canvas.getContext("webgl");
+    this.meshes = {};
     this.shaders = {};
     this.textures = {};
+    this.frameBuffers = {};
     this.ctrB = 0;
     this.ctrS = 0;
     this.ctrT = 0;
@@ -66,7 +72,7 @@ function WebGL(canvas) {
             this.gl.vertexAttribPointer(shader.uvCoord, 2, this.gl.FLOAT, false, 0, 0);
 
             this.gl.activeTexture(this.gl.TEXTURE0);
-            this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[mesh.textureID]);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[mesh.texture.id].texture);
             this.gl.uniform1i(this.gl.getUniformLocation(shader.shader, "texture"), 0);
 
             this.gl.uniform2fv(this.gl.getUniformLocation(shader.shader, "resolution"), Float32Array.from([this.canvas.height, this.canvas.width]));
@@ -133,44 +139,51 @@ function WebGL(canvas) {
     };
 
     /**
-     * Load
-     * @param vertices
-     * @param uv
-     * @param shader
-     * @param textureID
-     * @returns {*}
+     * Loads mesh onto GPU and returns object
+     * @param vertices Vertices float array
+     * @param uv UV float array
+     * @param shader Shader object
+     * @param textureID Texture ID.
+     * @returns {Mesh}
      */
     this.loadMesh = function (vertices, uv, shader, textureID) {
-        var vertexBuffer =
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
-        var uvBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, uvBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uv), this.gl.STATIC_DRAW);
-        var ret = this.ctrB++;
-        this.meshes[ret] = new Mesh(ret, vertexBuffer, uvBuffer, shader, textureID);
-        return this.meshes[ret];
+        var id = this.ctrB++;
+        this.meshes[id] = new Mesh(id, vertices, uv, shader, textureID);
+        return this.meshes[id];
     };
 
+    /**
+     * <b>Do not modify. Used internally.</b>
+     * @type {number}
+     */
     this.texturesToLoad = 0;
 
+    /**
+     * Loads texture and registers it using @link {this.registerTexture}
+     * @param path Relative path to the image file. @type {String}
+     * @returns {Texture}
+     */
     this.loadTexture = function (path) {
         this.texturesToLoad++;
         var image = new Image();
         var id = this.ctrT++;
+        var tex = null;
         image.onload = function () {
-            var texture = this.gl.createTexture();
-            this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
-            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
-            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_NEAREST);
-            this.gl.generateMipmap(this.gl.TEXTURE_2D);
-            this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-            this.textures[id] = texture;
-            this.texturesToLoad--;
+            this.registerTexture(id, image);
         }.bind(this);
         image.src = path;
-        return id;
+        return tex;
+    };
+
+    /**
+     * Registers texture to this renderer
+     * @param id ID to register as (null for automatic) @type {number}
+     * @param texture The Image object @type {Image}
+     */
+    this.registerTexture = function (id, texture) {
+        tex = new Texture(id, this.gl, texture);
+        this.textures[id] = tex;
+        this.texturesToLoad--;
     };
 
     this.init();
@@ -194,23 +207,28 @@ function Shader(id, vertexPos, uvCoord, shader) {
 /**
  * <b>Do not use. Used internally.</b>
  * @param id ID of the mesh
- * @param gl Instace of {@link WebGL}
+ * @param gl Instance of {@link WebGL}
  * @param vertices Vertices float array
  * @param uv UV float array
  * @param shader Shader object
- * @param textureID Texture ID.
- * @param transformationMatrix
+ * @param texture Texture ID.
+ * @param transformationMatrix Optional parameter.
  * @constructor
  */
-function Mesh (id, gl, vertices, uv, shader, textureID, transformationMatrix /* OPTIONAL */) {
+function Mesh (id, gl, vertices, uv, shader, texture, transformationMatrix /* OPTIONAL */) {
     this.id = id;
     this.gl = gl;
     this.vertexBuffer = this.gl.createBuffer();
     this.uvBuffer = this.gl.createBuffer();
-    this.textureID = textureID;
+    this.texture = texture;
     this.shader = shader;
     this.transformationMatrix = transformationMatrix;
 
+    /**
+     * Used to set data to buffer of this mesh.
+     * @param buffer Buffer too be changed.
+     * @param data Data to be written. @type {Float32Array}
+     */
     this.setBufferData = function (buffer, data) {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(data), this.gl.STATIC_DRAW);
@@ -218,4 +236,46 @@ function Mesh (id, gl, vertices, uv, shader, textureID, transformationMatrix /* 
 
     this.setBufferData(this.vertexBuffer, vertices);
     this.setBufferData(this.uvBuffer, uv);
+}
+
+/**
+ * <b>Do not use. Used internally.</b>
+ * @param id ID of the texture
+ * @param gl Instance of {@link WebGL}
+ * @param texture Texture object @type {Image}
+ * @constructor
+ */
+function Texture(id, gl, texture) {
+    this.id = id;
+    this.gl = gl;
+    this.texture = this.gl.createTexture();
+
+    /**
+     * Allows replacing data of this texture.
+     * @param texture Texture to be loaded to GPU @type {Image}
+     */
+    this.setTexture = function (texture) {
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, texture);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_NEAREST);
+        this.gl.generateMipmap(this.gl.TEXTURE_2D);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+    };
+
+    if (texture != null)
+        this.setTexture(texture);
+}
+
+/**
+ *
+ * @param id
+ * @param glRenderer WebGL instance @type {WebGL}
+ * @constructor
+ */
+function FrameBuffer(id, glRenderer) {
+    this.id = id;
+    this.glRenderer = glRenderer;
+    this.texture = new Texture(this.glRenderer.ctrT++, this.glRenderer.gl);
+    this.buffer = this.gl.createFrameBuffer();
 }
