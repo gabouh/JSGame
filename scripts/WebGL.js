@@ -4,9 +4,11 @@
  */
 var fragShader = "precision mediump float;\n" +
     "uniform sampler2D texture;\n" +
+    "uniform vec3 color;\n" +
     "varying highp vec2 vUV;\n" +
     "void main() {\n" +
     "   gl_FragColor = texture2D(texture, vUV);\n" +
+    "   //gl_FragColor = vec4(color, 1.0);\n" +
     "}";
 /**
  * Default vertex shader. <b>Do not change!</b>
@@ -22,7 +24,7 @@ var vertShader = "attribute vec3 aVertexPos;\n" +
 
 /**
  * Returns WebGL renderer instance.
- * @param canvas Canvas to be used for rendering (!!! May be subject of change to allow rendering to texture to allow image postprocessing)
+ * @param canvas Canvas to be used for rendering
  * @constructor
  */
 function WebGL(canvas) {
@@ -35,6 +37,7 @@ function WebGL(canvas) {
     this.ctrB = 0;
     this.ctrS = 0;
     this.ctrT = 0;
+    this.ctrF = 0;
 
     /**
      * <b>Do not use. Used internally.</b>
@@ -49,12 +52,16 @@ function WebGL(canvas) {
     };
 
     /**
-     * Call this function to draw onto canvas (TODO: Allow rendering to texture)
+     * Call this function to draw onto canvas or onto Framebuffer, if specified.
+     * @param frameBuffer frame buffer to be drawn to. <i>Null</i> if want render to canvas. @type {FrameBuffer}
      */
-    this.draw = function () {
+    this.draw = function (frameBuffer) {
         if (this.texturesToLoad > 0) {
             console.log("Textures not loaded yet!");
             return;
+        }
+        if (frameBuffer != null && frameBuffer != undefined) {
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, frameBuffer.buffer);
         }
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
@@ -63,22 +70,34 @@ function WebGL(canvas) {
             if (!this.meshes.hasOwnProperty(meshID))
                 continue;
             var mesh = this.meshes[meshID];
-            var shader = this.shaders[mesh.shader];
-            this.gl.useProgram(shader.shader);
+            this.gl.useProgram(mesh.shader.shader);
 
+            //BUFFER BINDING
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, mesh.vertexBuffer);
-            this.gl.vertexAttribPointer(shader.vertexPos, 3, this.gl.FLOAT, false, 0, 0);
+            this.gl.vertexAttribPointer(mesh.shader.vertexPos, 3, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, mesh.uvBuffer);
-            this.gl.vertexAttribPointer(shader.uvCoord, 2, this.gl.FLOAT, false, 0, 0);
+            this.gl.vertexAttribPointer(mesh.shader.uvCoord, 2, this.gl.FLOAT, false, 0, 0);
 
+            //TEXTURE BINDING
             this.gl.activeTexture(this.gl.TEXTURE0);
             this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[mesh.texture.id].texture);
-            this.gl.uniform1i(this.gl.getUniformLocation(shader.shader, "texture"), 0);
+            this.gl.uniform1i(this.gl.getUniformLocation(mesh.shader.shader, "texture"), 0);
 
-            this.gl.uniform2fv(this.gl.getUniformLocation(shader.shader, "resolution"), Float32Array.from([this.canvas.height, this.canvas.width]));
+            // GLOBAL UNIFORMS
+            this.gl.uniform2fv(this.gl.getUniformLocation(mesh.shader.shader, "resolution"), Float32Array.from([this.canvas.height, this.canvas.width]));
+
+            //LOCAL UNIFORMS
+            for (var uniform in mesh.uniforms) {
+                uniform = mesh.uniforms[uniform];
+                if (uniform.type == UniformTypes.m2f || uniform.type == UniformTypes.m3f || uniform.type == UniformTypes.m4f)
+                    this.gl[uniform.type](this.gl.getUniformLocation(mesh.shader.shader, uniform.name), false, uniform.value);
+                else
+                    this.gl[uniform.type](this.gl.getUniformLocation(mesh.shader.shader, uniform.name), uniform.value);
+            }
 
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
         }
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     };
 
     /**
@@ -96,9 +115,9 @@ function WebGL(canvas) {
         this.gl.enableVertexAttribArray(aVertexPos);
         var uvCoord = this.gl.getAttribLocation(program, "aUVPos");
         this.gl.enableVertexAttribArray(uvCoord);
-        var id = this.ctrS++;
-        this.shaders[id] = new Shader(aVertexPos, uvCoord, program);
-        return this.shaders[id];
+        var shader = new Shader(this.ctrS++, aVertexPos, uvCoord, program);
+        this.shaders[shader.id] = shader;
+        return shader;
     };
 
     /**
@@ -148,14 +167,10 @@ function WebGL(canvas) {
      */
     this.loadMesh = function (vertices, uv, shader, textureID) {
         var id = this.ctrB++;
-        this.meshes[id] = new Mesh(id, vertices, uv, shader, textureID);
+        this.meshes[id] = new Mesh(id, this.gl, vertices, uv, shader, textureID);
         return this.meshes[id];
     };
 
-    /**
-     * <b>Do not modify. Used internally.</b>
-     * @type {number}
-     */
     this.texturesToLoad = 0;
 
     /**
@@ -167,9 +182,10 @@ function WebGL(canvas) {
         this.texturesToLoad++;
         var image = new Image();
         var id = this.ctrT++;
-        var tex = null;
+        var tex = this.registerTexture(id, null);
         image.onload = function () {
-            this.registerTexture(id, image);
+            tex.setTexture(image);
+            this.texturesToLoad--;
         }.bind(this);
         image.src = path;
         return tex;
@@ -181,9 +197,21 @@ function WebGL(canvas) {
      * @param texture The Image object @type {Image}
      */
     this.registerTexture = function (id, texture) {
-        tex = new Texture(id, this.gl, texture);
+        if (id == null)
+            id = this.ctrT++;
+        var tex = new Texture(id, this.gl, texture);
         this.textures[id] = tex;
-        this.texturesToLoad--;
+        return tex;
+    };
+
+    /**
+     * Used to create Framebuffer for rendering to off-screen texture.
+     * @returns {FrameBuffer}
+     */
+    this.createFramebuffer = function () {
+        var fb = new FrameBuffer(this.ctrF++, this.gl);
+        this.frameBuffers[fb.id] = fb;
+        return fb;
     };
 
     this.init();
@@ -205,6 +233,24 @@ function Shader(id, vertexPos, uvCoord, shader) {
 }
 
 /**
+ * Types of uniforms that can be passed to setLocalUniform method of @link {Mesh}
+ * @type {{}}
+ */
+UniformTypes = {
+   "1fv":  "uniform1fv",
+    "2fv": "uniform2fv",
+    "3fv": "uniform3fv",
+    "4fv": "uniform4fv",
+    "1iv":  "uniform1iv",
+    "2iv": "uniform2iv",
+    "3iv": "uniform3iv",
+    "4iv": "uniform4iv",
+    "m2f": "uniformMatrix2fv",
+    "m3f": "uniformMatrix3fv",
+    "m4f": "uniformMatrix4fv"
+};
+
+/**
  * <b>Do not use. Used internally.</b>
  * @param id ID of the mesh
  * @param gl Instance of {@link WebGL}
@@ -212,30 +258,48 @@ function Shader(id, vertexPos, uvCoord, shader) {
  * @param uv UV float array
  * @param shader Shader object
  * @param texture Texture ID.
- * @param transformationMatrix Optional parameter.
+ * @param [transformationMatrix] Optional parameter.
  * @constructor
  */
-function Mesh (id, gl, vertices, uv, shader, texture, transformationMatrix /* OPTIONAL */) {
+function Mesh (id, gl, vertices, uv, shader, texture, transformationMatrix) {
     this.id = id;
     this.gl = gl;
     this.vertexBuffer = this.gl.createBuffer();
     this.uvBuffer = this.gl.createBuffer();
     this.texture = texture;
     this.shader = shader;
-    this.transformationMatrix = transformationMatrix;
+    this.uniforms = [];
 
     /**
      * Used to set data to buffer of this mesh.
      * @param buffer Buffer too be changed.
-     * @param data Data to be written. @type {Float32Array}
+     * @param data {Float32Array} Data to be written.
      */
     this.setBufferData = function (buffer, data) {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(data), this.gl.STATIC_DRAW);
     };
 
+    this.addLocalUniform = function (name, value, type) {
+        this.uniforms.push(new UniformStruct(name, value, type))
+    };
+
     this.setBufferData(this.vertexBuffer, vertices);
     this.setBufferData(this.uvBuffer, uv);
+    //this.addLocalUniform("transformationMatrix", transformationMatrix, UniformTypes.m4f);
+}
+
+/**
+ * <b>Do not use. Used internally.</b>
+ * @param name {string} Name of the uniform in shader.
+ * @param value Value to be sent.
+ * @param type {UniformTypes} Type of the uniform @link {UniformTypes}
+ * @constructor
+ */
+function UniformStruct(name, value, type) {
+    this.name = name;
+    this.value = value;
+    this.type = type;
 }
 
 /**
@@ -263,19 +327,23 @@ function Texture(id, gl, texture) {
         this.gl.bindTexture(this.gl.TEXTURE_2D, null);
     };
 
-    if (texture != null)
+    if (texture != null && texture != undefined)
         this.setTexture(texture);
 }
 
 /**
- *
- * @param id
- * @param glRenderer WebGL instance @type {WebGL}
+ * <b>Do not use. Used internally.</b>
+ * @param id ID of the framebuffer.
+ * @param gl WebGLRenderingContext instance @type {WebGLRenderingContext}
  * @constructor
  */
-function FrameBuffer(id, glRenderer) {
+function FrameBuffer(id, gl) {
     this.id = id;
-    this.glRenderer = glRenderer;
-    this.texture = new Texture(this.glRenderer.ctrT++, this.glRenderer.gl);
-    this.buffer = this.gl.createFrameBuffer();
+    this.gl = gl;
+    this.texture = new Texture(null, this.gl);
+    this.buffer = this.gl.createFramebuffer();
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.buffer);
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.texture.texture, 0);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
 }

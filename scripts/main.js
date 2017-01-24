@@ -101,8 +101,10 @@ function initEditor(canvasI) {
 
 function initRenderer() {
     var shader = renderer.loadShader(fragShader, vertShader);
-    renderer.loadMesh([1,1,0, -1,1,0, 1,-1,0, -1,-1,0], [50,50, 0,50, 50,0, 0,0], renderer.loadTexture("assets/back.png"), shader);
-    renderer.loadMesh([0.2,0.2,0, -0.2,0.2,0, 0.2,-0.2,0, -0.2,-0.2,0], [10,10, 0,10, 10,0, 0,0], renderer.loadTexture("assets/dirt.png"), shader);
+    var back = renderer.loadMesh([1,1,0, -1,1,0, 1,-1,0, -1,-1,0], [50,50, 0,50, 50,0, 0,0], shader, renderer.loadTexture("assets/back.png"));
+    var prev = renderer.loadMesh([0.2,0.2,0, -0.2,0.2,0, 0.2,-0.2,0, -0.2,-0.2,0], [10,10, 0,10, 10,0, 0,0], shader, renderer.loadTexture("assets/dirt.png"));
+    back.addLocalUniform("color", new Float32Array([1.0, 0.0, 0.0]), UniformTypes["3fv"]);
+    prev.addLocalUniform("color", new Float32Array([0.4, 0.1, 0.7]), UniformTypes["3fv"]);
 }
 
 function onMouseMove(event) {
